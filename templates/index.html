@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crop Yield Prediction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .stat-card {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+        .prediction-form {
+            background-color: white;
+        }
+        .result-card {
+            display: none;
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+        }
+        .form-control {
+            border-radius: 8px;
+            border: 1px solid #ced4da;
+        }
+        .form-control:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
+        }
+        .btn-predict {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            transition: all 0.3s;
+        }
+        .btn-predict:hover {
+            background: linear-gradient(45deg, #45a049, #4CAF50);
+            transform: translateY(-2px);
+        }
+        .confidence-interval {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .error-message {
+            display: none;
+            color: #dc3545;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <h1 class="text-center mb-5">Crop Yield Prediction System</h1>
+        
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-farm fa-2x mb-3"></i>
+                        <h5>Total Farms</h5>
+                        <h3>{{ stats.total_farms }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-seedling fa-2x mb-3"></i>
+                        <h5>Crop Types</h5>
+                        <h3>{{ stats.crop_types }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-line fa-2x mb-3"></i>
+                        <h5>Avg Yield</h5>
+                        <h3>{{ stats.avg_yield }} tons</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-tachometer-alt fa-2x mb-3"></i>
+                        <h5>Yield Range</h5>
+                        <h3>{{ stats.min_yield }} - {{ stats.max_yield }} tons</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prediction Form -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card prediction-form">
+                    <div class="card-body">
+                        <h3 class="card-title mb-4">Predict Crop Yield</h3>
+                        <form id="predictionForm">
+                            <div class="mb-3">
+                                <label class="form-label">Crop Type</label>
+                                <select class="form-control" id="crop_type" required>
+                                    {% for type in crop_types %}
+                                    <option value="{{ type }}">{{ type }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Farm Area (acres)</label>
+                                <input type="number" class="form-control" id="farm_area" required min="0" step="0.01">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Irrigation Type</label>
+                                <select class="form-control" id="irrigation_type" required>
+                                    {% for type in irrigation_types %}
+                                    <option value="{{ type }}">{{ type }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Fertilizer Used (tons)</label>
+                                <input type="number" class="form-control" id="fertilizer" required min="0" step="0.01">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Pesticide Used (kg)</label>
+                                <input type="number" class="form-control" id="pesticide" required min="0" step="0.01">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Soil Type</label>
+                                <select class="form-control" id="soil_type" required>
+                                    {% for type in soil_types %}
+                                    <option value="{{ type }}">{{ type }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Season</label>
+                                <select class="form-control" id="season" required>
+                                    {% for season in seasons %}
+                                    <option value="{{ season }}">{{ season }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Water Usage (cubic meters)</label>
+                                <input type="number" class="form-control" id="water_usage" required min="0" step="0.01">
+                            </div>
+                            <button type="submit" class="btn btn-predict text-white w-100">
+                                <i class="fas fa-calculator me-2"></i>Predict Yield
+                            </button>
+                        </form>
+                        <div class="error-message" id="errorMessage"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card result-card" id="resultCard">
+                    <div class="card-body text-center">
+                        <h3 class="card-title mb-4">Predicted Yield</h3>
+                        <div class="display-4 mb-2" id="predictionResult">0</div>
+                        <p class="mb-0">tons per acre</p>
+                        <div class="confidence-interval mt-3">
+                            <p class="mb-0">Confidence Interval (95%):</p>
+                            <p class="mb-0" id="confidenceInterval">0 - 0 tons</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title mb-4">Analysis Insights</h3>
+                        <img src="{{ url_for('static', filename='analysis_plots.png') }}" class="img-fluid" alt="Analysis Plots">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('predictionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Hide previous results and errors
+            document.getElementById('resultCard').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            
+            const formData = {
+                crop_type: document.getElementById('crop_type').value,
+                farm_area: document.getElementById('farm_area').value,
+                irrigation_type: document.getElementById('irrigation_type').value,
+                fertilizer: document.getElementById('fertilizer').value,
+                pesticide: document.getElementById('pesticide').value,
+                soil_type: document.getElementById('soil_type').value,
+                season: document.getElementById('season').value,
+                water_usage: document.getElementById('water_usage').value
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('predictionResult').textContent = data.prediction;
+                    document.getElementById('confidenceInterval').textContent = 
+                        `${data.confidence_interval.lower} - ${data.confidence_interval.upper} tons`;
+                    document.getElementById('resultCard').style.display = 'block';
+                } else {
+                    const errorMessage = document.getElementById('errorMessage');
+                    errorMessage.textContent = data.error;
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                const errorMessage = document.getElementById('errorMessage');
+                errorMessage.textContent = 'Error making prediction: ' + error;
+                errorMessage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html> 
